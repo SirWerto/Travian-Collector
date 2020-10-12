@@ -13,8 +13,6 @@
 
 -export([scraping/3, collecting/3, waiting/3]).
 
--export([time_until_daily/1]).
-
 -define(SPEC, #{id => wsup,
 	        start => {tc_sup_workers, start_link, []},
 	        restart => temporary,
@@ -44,7 +42,7 @@ callback_mode() ->
     state_functions.
 
 
-
+%% SCRAPING STATE
 scraping(info, {start_sup, Parent}, _S) ->
     {ok, Sup} = supervisor:start_child(Parent, ?SPEC),
     {ok, Tries} = application:get_env(maxTries),
@@ -60,21 +58,23 @@ scraping(info, {start_sup, Parent}, _S) ->
     {next_state, scraping, S, [{state_timeout, 10000, scrap_now}]};
 
 scraping(state_timeout, scrap_now, S) ->
-    io:format("Scrap now~p~n",[S]),
-    {next_state, collecting, S, [{state_timeout, 100, scraping}]};
-
-scraping(state_timeout, _State, S) ->
-    io:format("Do something cool~p~n",[S]),
-    {next_state, collecting, S, [{state_timeout, 100, scraping}]}.
+    Fn = fun(E, Acc) -> queue:in(E, Acc) end,
+    NewTasks = lists:foldl(Fn, queue:new(), get_servers_list()),
+    io:format("Scrap now~p~n",[NewTasks]),
+    {next_state, collecting, S}.
 
 
-collecting(state_timeout, scraping, S) ->
-    io:format("Do something cool, but in collecting~p~n",[S]),
+
+%% COLLECTING STATE
+collecting(info, {'DOWN', Ref, process, Pid, normal}, S) ->
+    {next_state, waiting, S, [{state_timeout, 100, wait_until_daily}]};
+collecting(info, {'DOWN', Ref, process, Pid, _Reason}, S) ->
     {next_state, waiting, S, [{state_timeout, 100, wait_until_daily}]}.
 
     
 
 
+%% WAITING STATE
 waiting(info, {start_sup, Parent}, _S) ->
     {ok, Sup} = supervisor:start_child(Parent, ?SPEC),
     {ok, Tries} = application:get_env(maxTries),
@@ -120,4 +120,20 @@ eval_diff(H, M, S) ->
     end.
 	    
     
+%%% Request Servers Functions
     
+get_servers_html() ->
+    Url = "https://status.travian.com/",
+    {ok, {{_, 200, _}, _, Body}} = httpc:request(get, {Url, []}, [], []),
+    Body.
+
+parse_server_html(S) ->
+    [_| Splited] = string:split(S, "https://", all),
+    [{get_server(X), 0} || X <- Splited].
+
+get_server(S) ->
+    [Splited| _] = string:split(S, "<", leading),
+    Splited.
+
+get_servers_list() ->
+    parse_server_html(get_servers_html()).
