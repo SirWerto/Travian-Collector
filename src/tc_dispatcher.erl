@@ -22,7 +22,9 @@
 
 -record(s, {supervisor,
 	    tasks=queue:new(),
+	    ntask = 0,
 	    monitors=maps:new(),
+	    nmoni = 0,
 	    maxTries=6,
 	    maxWorkers=40,
 	    daily={9,0,0}}).
@@ -60,8 +62,10 @@ scraping(info, {start_sup, Parent}, _S) ->
 scraping(state_timeout, scrap_now, S) ->
     Fn = fun(E, Acc) -> queue:in(E, Acc) end,
     NewTasks = lists:foldl(Fn, queue:new(), get_servers_list()),
+    NewNtask = queue:len(NewTasks),
+    NewS = S#s{tasks=NewTasks, ntask=NewNtask},
     io:format("Scrap now~p~n",[NewTasks]),
-    {next_state, collecting, S}.
+    {next_state, collecting, NewS, [{state_timeout, 100, launch_collecting}]}.
 
 
 
