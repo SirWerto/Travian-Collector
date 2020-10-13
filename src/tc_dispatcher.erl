@@ -72,6 +72,9 @@ scraping(state_timeout, scrap_now, S) ->
 
 
 %% COLLECTING STATE
+collecting(state_timeout, launch_collecting, S) ->
+    NewState = send_task(S),
+    {next_state, collecting, NewState};
 collecting(info, {'DOWN', Ref, process, _Pid, normal}, S) ->
     case send_task(handle_done(Ref, S)) of
 	{job_done, NewState} ->
@@ -79,8 +82,13 @@ collecting(info, {'DOWN', Ref, process, _Pid, normal}, S) ->
 	NewState ->
 	    {next_state, collecting, NewState}
     end;
-collecting(info, {'DOWN', Ref, process, Pid, _Reason}, S) ->
-    {next_state, waiting, S, [{state_timeout, 100, wait_until_daily}]}.
+collecting(info, {'DOWN', Ref, process, _Pid, _Reason}, S) ->
+    case send_task(handle_down(Ref, S)) of
+	{job_done, NewState} ->
+	    {next_state, waiting, NewState, [{state_timeout, 100, wait_until_daily}]};
+	NewState ->
+	    {next_state, collecting, NewState}
+    end.
 
     
 
@@ -157,6 +165,24 @@ handle_done(Ref, State = #s{monitors=Monitors, nmoni=NM, done=Done}) ->
 	    State
     end.
 	    
+handle_down(Ref, State = #s{tasks=Tasks, ntask=NTask, monitors=Monitors, nmoni=NM, maxTries=MaxTries, failed=Failed}) ->
+    case maps:is_key(Ref, Monitors) of
+	true ->
+	    {Task, Count} = maps:get(Ref, Monitors),
+	    NewMonitors = maps:remove(Ref, Monitors),
+	    if Count =:= MaxTries ->
+		    NewFailed = [Task | Failed],
+		    State#s{monitors=NewMonitors, nmoni=NM-1, failed=NewFailed};
+	       true ->
+		    NewTasks = queue:in({Task, Count+1}, Tasks),
+		    State#s{tasks=NewTasks, ntask=NTask-1, monitors=NewMonitors, nmoni=NM-1}
+	    end;
+	false ->
+	    State
+    end.
+		    
+
+		    
 	    
     
     
