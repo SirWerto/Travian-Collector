@@ -25,6 +25,8 @@
 	    ntask = 0,
 	    monitors=maps:new(),
 	    nmoni = 0,
+	    done = [],
+	    failed = [],
 	    maxTries=6,
 	    maxWorkers=40,
 	    daily={9,0,0}}).
@@ -60,7 +62,7 @@ scraping(info, {start_sup, Parent}, _S) ->
     {next_state, scraping, S, [{state_timeout, 10000, scrap_now}]};
 
 scraping(state_timeout, scrap_now, S) ->
-    Fn = fun(E, Acc) -> queue:in(E, Acc) end,
+    Fn = fun(E, Acc) -> queue:in({E, 0}, Acc) end,
     NewTasks = lists:foldl(Fn, queue:new(), get_servers_list()),
     NewNtask = queue:len(NewTasks),
     NewS = S#s{tasks=NewTasks, ntask=NewNtask},
@@ -70,8 +72,13 @@ scraping(state_timeout, scrap_now, S) ->
 
 
 %% COLLECTING STATE
-collecting(info, {'DOWN', Ref, process, Pid, normal}, S) ->
-    {next_state, waiting, S, [{state_timeout, 100, wait_until_daily}]};
+collecting(info, {'DOWN', Ref, process, _Pid, normal}, S) ->
+    case send_task(handle_done(Ref, S)) of
+	{job_done, NewState} ->
+	    {next_state, waiting, NewState, [{state_timeout, 100, wait_until_daily}]};
+	NewState ->
+	    {next_state, collecting, NewState}
+    end;
 collecting(info, {'DOWN', Ref, process, Pid, _Reason}, S) ->
     {next_state, waiting, S, [{state_timeout, 100, wait_until_daily}]}.
 
@@ -122,6 +129,41 @@ eval_diff(H, M, S) ->
        true ->
 	    {H, M, S}
     end.
+
+%% State stuff
+
+send_task(State = #s{ntask=0, nmoni=0}) ->
+    {job_done, State};
+send_task(State = #s{ntask=0}) ->
+    State;
+send_task(State = #s{nmoni=Max, maxWorkers=Max}) ->
+    State;
+send_task(State = #s{tasks=Tasks, ntask=NTask, supervisor=Sup, monitors=Monitors, nmoni=NM}) ->
+    {{value, {Task, Count}}, NewTasks} = queue:out(Tasks),
+    {ok, Pid} = supervisor:start_child(Sup, Task),
+    Ref = erlang:monitor(process, Pid),
+    NewMonitors = maps:put(Ref, {Task,Count+1}, Monitors),
+    NewState = State#s{tasks=NewTasks, ntask=NTask-1, monitors=NewMonitors, nmoni=NM+1},
+    NewState.
+
+handle_done(Ref, State = #s{monitors=Monitors, nmoni=NM, done=Done}) ->
+    case maps:is_key(Ref, Monitors) of
+	true ->
+	    Task = maps:get(Ref, Monitors),
+	    NewDone = [Task | Done],
+	    NewMonitors = maps:remove(Ref, Monitors),
+	    State#s{monitors=NewMonitors, nmoni=NM-1, done=NewDone};
+	false ->
+	    State
+    end.
+	    
+	    
+    
+    
+    
+
+
+    
 	    
     
 %%% Request Servers Functions
