@@ -7,7 +7,7 @@
 
 -behaviour(gen_statem).
 
--export([start_link/1]).
+-export([start_link/1, get_servers_list/0]).
 
 -export([init/1, callback_mode/0]).
 
@@ -148,7 +148,7 @@ send_task(State = #s{nmoni=Max, maxWorkers=Max}) ->
     State;
 send_task(State = #s{tasks=Tasks, ntask=NTask, supervisor=Sup, monitors=Monitors, nmoni=NM}) ->
     {{value, {Task, Count}}, NewTasks} = queue:out(Tasks),
-    {ok, Pid} = supervisor:start_child(Sup, Task),
+    {ok, Pid} = supervisor:start_child(Sup, [Task]),
     Ref = erlang:monitor(process, Pid),
     NewMonitors = maps:put(Ref, {Task,Count+1}, Monitors),
     NewState = State#s{tasks=NewTasks, ntask=NTask-1, monitors=NewMonitors, nmoni=NM+1},
@@ -181,15 +181,6 @@ handle_down(Ref, State = #s{tasks=Tasks, ntask=NTask, monitors=Monitors, nmoni=N
 	    State
     end.
 		    
-
-		    
-	    
-    
-    
-    
-
-
-    
 	    
     
 %%% Request Servers Functions
@@ -201,7 +192,7 @@ get_servers_html() ->
 
 parse_server_html(S) ->
     [_| Splited] = string:split(S, "https://", all),
-    [{get_server(X), 0} || X <- Splited].
+    [get_server(X) || X <- Splited].
 
 get_server(S) ->
     [Splited| _] = string:split(S, "<", leading),
