@@ -9,7 +9,7 @@
    ]},
   {env,[
 	{maxTries, 6},
-	{maxWorkers, 40},
+	{maxWorkers, 200},
 	{daily_launch, #{hour => 9, minute => 0, second => 0}},
 	{start_on_launch, true},
 	{tdir, "/home/jorge/travian_root"}

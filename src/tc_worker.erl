@@ -98,12 +98,10 @@ do_server(Url) ->
 store_server(TDir, MapPhP, PMap) ->
     Path = TDir++"/"++maps:get(name,MapPhP)++"/",
     ok = filelib:ensure_dir(Path),
-    io:format("~p~n", [Path]),
     NameInfo = ["info", ".txt"],
     %ok = file:write_file(Path++NameInfo, maps:to_list(MapPhP)),
     {{Year,Month,Day}, _} = erlang:localtime(),
     NameDay = [integer_to_list(Year), "-", integer_to_list(Month), "-", integer_to_list(Day), ".csv"],
-    io:format("~p~n", [NameDay]),
     ok = file:write_file(Path++NameDay, binary_to_list(PMap)),
     ok.
 

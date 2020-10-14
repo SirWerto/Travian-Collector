@@ -34,7 +34,7 @@
 
 
 start_link(Parent) ->
-    gen_statem:start_link(?MODULE, [Parent], []).
+    gen_statem:start_link({local, travian_dp}, ?MODULE, [Parent], []).
 
 init([Parent]) ->
     self() ! {start_sup, Parent},
@@ -70,7 +70,7 @@ scraping(state_timeout, scrap_now, S) ->
     NewTasks = lists:foldl(Fn, queue:new(), get_servers_list()),
     NewNtask = queue:len(NewTasks),
     NewS = S#s{tasks=NewTasks, ntask=NewNtask},
-    io:format("Scrap now~p~n",[NewTasks]),
+    io:format("Scrap now~n",[]),
     {next_state, collecting, NewS, [{state_timeout, 100, launch_collecting}]}.
 
 
@@ -78,6 +78,7 @@ scraping(state_timeout, scrap_now, S) ->
 %% COLLECTING STATE
 collecting(state_timeout, launch_collecting, S) ->
     NewState = send_task(S),
+    io:format("Task sended~n",[]),
     {next_state, collecting, NewState};
 collecting(info, {'DOWN', Ref, process, _Pid, normal}, S) ->
     case send_task(handle_done(Ref, S)) of
@@ -116,6 +117,7 @@ waiting(info, {start_sup, Parent}, _S) ->
     {next_state, waiting, S, [{state_timeout, 10000, wait_until_daily}]};
 
 waiting(state_timeout, wait_until_daily, S = #s{daily=D}) ->
+    io:format("Collecting finished",[]),
     STime = time_until_daily(D),
     timer:sleep(STime),
     {next_state, scraping, S, [{state_timeout, 100, scrap_now}]}.
