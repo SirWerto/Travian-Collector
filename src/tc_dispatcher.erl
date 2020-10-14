@@ -25,6 +25,7 @@
 	    ntask = 0,
 	    monitors=maps:new(),
 	    nmoni = 0,
+	    tdir,
 	    done = [],
 	    failed = [],
 	    maxTries=6,
@@ -51,11 +52,14 @@ scraping(info, {start_sup, Parent}, _S) ->
     {ok, Sup} = supervisor:start_child(Parent, ?SPEC),
     {ok, Tries} = application:get_env(maxTries),
     {ok, Workers} = application:get_env(maxWorkers),
+    {ok, TDir} = application:get_env(tdir),
+    ok = filelib:ensure_dir(TDir),
     {ok, Daily} = application:get_env(daily_launch),
     Hour = maps:get(hour, Daily),
     Minute = maps:get(minute, Daily),
     Second = maps:get(second, Daily),
     S = #s{supervisor=Sup,
+	   tdir = TDir,
 	   maxTries = Tries,
 	   maxWorkers = Workers,
 	   daily = {Hour, Minute, Second}},
@@ -98,12 +102,15 @@ waiting(info, {start_sup, Parent}, _S) ->
     {ok, Sup} = supervisor:start_child(Parent, ?SPEC),
     {ok, Tries} = application:get_env(maxTries),
     {ok, Workers} = application:get_env(maxWorkers),
+    {ok, TDir} = application:get_env(tdir),
+    ok = filelib:ensure_dir(TDir),
     {ok, Daily} = application:get_env(daily_launch),
     Hour = maps:get(hour, Daily),
     Minute = maps:get(minute, Daily),
     Second = maps:get(second, Daily),
     S = #s{supervisor=Sup,
 	   maxTries = Tries,
+	   tdir = TDir,
 	   maxWorkers = Workers,
 	   daily = {Hour, Minute, Second}},
     {next_state, waiting, S, [{state_timeout, 10000, wait_until_daily}]};
@@ -146,9 +153,9 @@ send_task(State = #s{ntask=0}) ->
     State;
 send_task(State = #s{nmoni=Max, maxWorkers=Max}) ->
     State;
-send_task(State = #s{tasks=Tasks, ntask=NTask, supervisor=Sup, monitors=Monitors, nmoni=NM}) ->
+send_task(State = #s{tasks=Tasks, ntask=NTask, supervisor=Sup, tdir=TDir, monitors=Monitors, nmoni=NM}) ->
     {{value, {Task, Count}}, NewTasks} = queue:out(Tasks),
-    {ok, Pid} = supervisor:start_child(Sup, [Task]),
+    {ok, Pid} = supervisor:start_child(Sup, [Task, TDir]),
     Ref = erlang:monitor(process, Pid),
     NewMonitors = maps:put(Ref, {Task,Count+1}, Monitors),
     NewState = State#s{tasks=NewTasks, ntask=NTask-1, monitors=NewMonitors, nmoni=NM+1},
