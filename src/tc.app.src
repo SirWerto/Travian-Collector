@@ -11,7 +11,8 @@
 	{maxTries, 6},
 	{maxWorkers, 40},
 	{daily_launch, #{hour => 9, minute => 0, second => 0}},
-	{start_on_launch, true}
+	{start_on_launch, true},
+	{travian_dir, "/home/jorge/travian_root"}
        ]},
   {modules, []},
 
