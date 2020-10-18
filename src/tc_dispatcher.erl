@@ -197,7 +197,6 @@ handle_down(Ref, State = #s{tasks=Tasks, ntask=NTask, monitors=Monitors, nmoni=N
 get_servers_html() ->
     {ok, 200, _RespHeaders, ClientRef}=hackney:request(get, <<"https://status.travian.com">>, [], <<>>, []),
     {ok, Body} = hackney:body(ClientRef),
-    %{ok, {{_, 200, _}, _, Body}} = httpc:request(get, {Url, []}, [], []),
     Body.
 
 parse_server_html(S) ->

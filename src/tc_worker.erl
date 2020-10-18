@@ -42,8 +42,9 @@ terminate(normal, Url) ->
 
 
 request_map(Url) ->
-    {ok, {{_, 200, "OK"}, _, Body}} = httpc:request(Url),
-    list_to_binary(Body).
+    {ok, 200, _RespHeaders, ClientRef}=hackney:request(get, Url, [], <<>>, []),
+    {ok, Body} = hackney:body(ClientRef),
+    Body.
 
 parse_binary_map(Map) ->
     Lines = binary:split(Map, [<<10>>], [global]), %% 10 == line jump
@@ -61,7 +62,7 @@ parse_binary_line(Line, Acc) ->
 
 
 do_map(Url) ->
-    ComposeUrl = "https://" ++ Url ++ "/map.sql",
+    ComposeUrl = <<"https://", Url/binary, "/map.sql">>,
     Body = request_map(ComposeUrl),
     {ok, _PMap} = parse_binary_map(Body).
     
@@ -71,8 +72,9 @@ do_map(Url) ->
 
 
 request_php(Url) ->
-    {ok, {{_, 200, "OK"}, _, Body}} = httpc:request(Url),
-    list_to_binary(Body).
+    {ok, 200, _RespHeaders, ClientRef}=hackney:request(get, Url, [], <<>>, []),
+    {ok, Body} = hackney:body(ClientRef),
+    Body.
 
 parse_binary_php(BPhp) ->
     [_, TempWID] = binary:split(BPhp, <<"Travian.Game.worldId = '">>),
@@ -83,10 +85,10 @@ parse_binary_php(BPhp) ->
     {ok, MapPhP}.
     
 do_php(Url) ->
-    ComposeUrl = "https://" ++ Url ++ "/login.php",
+    ComposeUrl = <<"https://",Url/binary ,"/login.php">>,
     Body = request_php(ComposeUrl),
     {ok, MapPhP} = parse_binary_php(Body),
-    {ok, maps:put(name, maps:get(wid, MapPhP) ++ "-" ++ Url, MapPhP)}.
+    {ok, maps:put(name, maps:get(wid, MapPhP) ++ "-" ++ erlang:binary_to_list(Url), MapPhP)}.
 
 
 %%%----------Interfaze with us-------
