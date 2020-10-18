@@ -195,16 +195,16 @@ handle_down(Ref, State = #s{tasks=Tasks, ntask=NTask, monitors=Monitors, nmoni=N
 %%% Request Servers Functions
     
 get_servers_html() ->
-    Url = "https://status.travian.com/",
-    {ok, {{_, 200, _}, _, Body}} = httpc:request(get, {Url, []}, [], []),
+    {ok, 200, _RespHeaders, ClientRef}=hackney:request(get, <<"https://status.travian.com">>, [], <<>>, []),
+    {ok, Body} = hackney:body(ClientRef),
     Body.
 
 parse_server_html(S) ->
-    [_| Splited] = string:split(S, "https://", all),
+    [_| Splited] = binary:split(S, <<"https://">>, [global]),
     [get_server(X) || X <- Splited].
 
 get_server(S) ->
-    [Splited| _] = string:split(S, "<", leading),
+    [Splited| _] = binary:split(S, <<"<">>, []),
     Splited.
 
 get_servers_list() ->

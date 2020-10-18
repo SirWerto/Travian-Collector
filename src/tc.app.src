@@ -6,7 +6,7 @@
   {applications,
    [kernel,
     stdlib,
-    inets
+    hackney
    ]},
   {env,[
 	{maxTries, 6},
