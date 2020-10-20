@@ -118,34 +118,14 @@ waiting(info, {start_sup, Parent}, _S) ->
 
 waiting(state_timeout, wait_until_daily, S = #s{daily=D}) ->
     io:format("Collecting finished",[]),
-    STime = time_until_daily(D),
-    timer:sleep(STime),
+    DT = calendar:local_time(),
+    STime = time_difference(D, DT),
+    timer:sleep(STime*1000),
     {next_state, scraping, S, [{state_timeout, 100, scrap_now}]}.
 
 
     
 %% Internal Functions
-
-time_until_daily({H, M, S}) ->
-    {_Day, {NH, NM, NS}} = calendar:local_time(),
-    {DH, DM, DS} = eval_diff(H-NH, M-NM, S-NS),
-    (DH*60*60 + DM*60 + DS)*1000.
-
-eval_diff(H, M, S) ->
-    if S < 0 ->
-	    NewS = 60 + S,
-	    NewM = M -1,
-	    eval_diff(H, NewM, NewS);
-       M < 0 ->
-	    NewM = 60 + M,
-	    NewH = H -1,
-	    eval_diff(NewH, NewM, S);
-       H < 0 ->
-	    NewH = 24 + H,
-	    {NewH, M, S};
-       true ->
-	    {H, M, S}
-    end.
 
 time_difference(ObjTime, CDT = {CurrentDate, _CurrentTime}) ->
     DatePlusOne = add_one_day(CurrentDate),
