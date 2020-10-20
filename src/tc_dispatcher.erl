@@ -7,7 +7,7 @@
 
 -behaviour(gen_statem).
 
--export([start_link/1, get_servers_list/0]).
+-export([start_link/1, get_servers_list/0, time_difference/2, add_one_day/1]).
 
 -export([init/1, callback_mode/0]).
 
@@ -146,6 +146,27 @@ eval_diff(H, M, S) ->
        true ->
 	    {H, M, S}
     end.
+
+time_difference(ObjTime, CDT = {CurrentDate, _CurrentTime}) ->
+    DatePlusOne = add_one_day(CurrentDate),
+    calendar:datetime_to_gregorian_seconds({DatePlusOne, ObjTime}) 
+	- calendar:datetime_to_gregorian_seconds(CDT).
+
+add_one_day({Year, 12, Day}) ->
+    case calendar:last_day_of_the_month(Year, 12) of
+	Day ->
+	    {Year+1, 1, 1};
+	_ -> {Year, 12, Day+1}
+    end;
+add_one_day({Year, Month, Day}) ->
+    case calendar:last_day_of_the_month(Year, Month) of
+	Day ->
+	    {Year, Month+1, 1};
+	_ -> {Year, Month, Day+1}
+    end.
+
+
+    
 
 %% State stuff
 
