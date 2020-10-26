@@ -17,6 +17,8 @@ A release in erlang is self-contained so is easy to get ready:
 
     $ ./tc/bin/tc foreground
 
+It launch a shell script which launch the release, the foreground option send the errors to stdout
+
 How to edit the config file
 ---------------------------
 Open sys.config file under tc/release/long-string-of-letters&numbers/
