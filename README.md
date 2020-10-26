@@ -11,7 +11,7 @@ A release in erlang is self-contained so is easy to get ready:
 
 1º Download the lastest release and unzip it
 
-2º Edit the travian_collector/release/release_version/sys.config file and changes the default variable to adjust the application(at least the tdir var)
+2º Edit the travian_collector/releases/release_version/sys.config file and changes the default variable to adjust the application(at least the tdir var)
 
 3º And just launch the release and get child;)
 
@@ -21,7 +21,7 @@ It launch a shell script which launch the release, the foreground option send th
 
 How to edit the config file
 ---------------------------
-Open sys.config file under travian_collector/release/release_version/
+Open sys.config file under travian_collector/releases/release_version/
 
 This is a possible configuration example:
 
@@ -32,7 +32,7 @@ This is a possible configuration example:
 	{daily_launch, #{hour => 9, minute => 0, second => 0}},
 	{start_on_launch, true},
 	{tdir, "/home/jorge/travian_root"}
-]
+].
 ```
 #### maxTries
 This is the maximum number of attempts until the app surrender at downloading a failure server
