@@ -26,13 +26,13 @@ Open sys.config file under travian_collector/releases/release_version/
 This is a possible configuration example:
 
 ```
-[
-	{maxTries, 6},
+[{tc, [
+    {maxTries, 6},
 	{maxWorkers, 200},
 	{daily_launch, #{hour => 9, minute => 0, second => 0}},
 	{start_on_launch, true},
 	{tdir, "/home/jorge/travian_root"}
-].
+]}].
 ```
 #### maxTries
 This is the maximum number of attempts until the app surrender at downloading a failure server
