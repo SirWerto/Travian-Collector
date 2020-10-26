@@ -11,17 +11,17 @@ A release in erlang is self-contained so is easy to get ready:
 
 1º Download the lastest release and unzip it
 
-2º Edit the tc/release/long-string-of-letters&numbers/sys.config file and changes the default variable to adjust the application(at least the tdir var)
+2º Edit the travian_collector/release/release_version/sys.config file and changes the default variable to adjust the application(at least the tdir var)
 
 3º And just launch the release and get child;)
 
-    $ ./tc/bin/tc foreground
+    $ ./travian_collector/bin/travian_collector foreground
 
 It launch a shell script which launch the release, the foreground option send the errors to stdout
 
 How to edit the config file
 ---------------------------
-Open sys.config file under tc/release/long-string-of-letters&numbers/
+Open sys.config file under travian_collector/release/release_version/
 
 This is a possible configuration example:
 
