@@ -20,22 +20,28 @@
 	        type => supervisor,
 	        modules => [tc_sup_workers]}).
 
--record(s, {supervisor,
-	    tasks=queue:new(),
-	    ntask = 0,
-	    monitors=maps:new(),
-	    nmoni = 0,
-	    tdir,
-	    done = [],
-	    failed = [],
-	    maxTries=6,
-	    maxWorkers=40,
-	    daily={9,0,0}}).
+-type task() :: {Url :: binary(), Count :: non_neg_integer()}.
+
+-record(s, {supervisor :: pid(),
+	    tasks=queue:new() :: queue:queue(),
+	    ntask = 0 :: non_neg_integer(),
+	    monitors=maps:new() :: map(),
+	    nmoni = 0 :: non_neg_integer(),
+	    tdir :: string(),
+	    done = [] :: list(task()),
+	    failed = [] :: list(task()),
+	    maxTries=6 :: pos_integer(),
+	    maxWorkers=40 :: pos_integer(),
+	    daily={9,0,0} :: {0..24, 0..59, 0..59}}).
+
+-type s() :: #s{}.
 
 
+-spec start_link(Parent :: pid()) -> {ok, pid()} | {error, any()}.
 start_link(Parent) ->
     gen_statem:start_link({local, travian_dp}, ?MODULE, [Parent], []).
 
+-spec init([Parent :: pid()]) -> {ok, scraping, []} | {ok, waiting, []}.
 init([Parent]) ->
     self() ! {start_sup, Parent},
     case application:get_env(start_on_launch) of
@@ -43,6 +49,7 @@ init([Parent]) ->
 	{ok, false} -> {ok, waiting, []}
     end.
 
+-spec callback_mode() -> state_functions.
 callback_mode() ->
     state_functions.
 
@@ -127,11 +134,14 @@ waiting(state_timeout, wait_until_daily, S = #s{daily=D}) ->
     
 %% Internal Functions
 
+-spec time_difference(ObjTime :: calendar:time(), CDT :: calendar:datetime()) -> non_neg_integer().
 time_difference(ObjTime, CDT = {CurrentDate, _CurrentTime}) ->
     DatePlusOne = add_one_day(CurrentDate),
     calendar:datetime_to_gregorian_seconds({DatePlusOne, ObjTime}) 
 	- calendar:datetime_to_gregorian_seconds(CDT).
 
+-spec add_one_day({Year :: non_neg_integer(), 12, Day :: 1..31}) -> {non_neg_integer(), 1 | 12, 1..31};
+		 ({Year :: non_neg_integer(), Month :: 1..12, Day :: 1..31}) -> {non_neg_integer(), 1..12, 1..31}.
 add_one_day({Year, 12, Day}) ->
     case calendar:last_day_of_the_month(Year, 12) of
 	Day ->
@@ -150,6 +160,7 @@ add_one_day({Year, Month, Day}) ->
 
 %% State stuff
 
+-spec send_task(State :: s()) -> {job_done, s()} | s().
 send_task(State = #s{ntask=0, nmoni=0}) ->
     {job_done, State};
 send_task(State = #s{ntask=0}) ->
@@ -164,6 +175,7 @@ send_task(State = #s{tasks=Tasks, ntask=NTask, supervisor=Sup, tdir=TDir, monito
     NewState = State#s{tasks=NewTasks, ntask=NTask-1, monitors=NewMonitors, nmoni=NM+1},
     NewState.
 
+-spec handle_done(Ref :: reference(), State :: s()) -> s().
 handle_done(Ref, State = #s{monitors=Monitors, nmoni=NM, done=Done}) ->
     case maps:is_key(Ref, Monitors) of
 	true ->
@@ -175,6 +187,7 @@ handle_done(Ref, State = #s{monitors=Monitors, nmoni=NM, done=Done}) ->
 	    State
     end.
 	    
+-spec handle_down(Ref :: reference(), State :: s()) -> s().
 handle_down(Ref, State = #s{tasks=Tasks, ntask=NTask, monitors=Monitors, nmoni=NM, maxTries=MaxTries, failed=Failed}) ->
     case maps:is_key(Ref, Monitors) of
 	true ->
@@ -195,18 +208,22 @@ handle_down(Ref, State = #s{tasks=Tasks, ntask=NTask, monitors=Monitors, nmoni=N
     
 %%% Request Servers Functions
     
+-spec get_servers_html() -> <<>>.
 get_servers_html() ->
     {ok, 200, _RespHeaders, ClientRef}=hackney:request(get, <<"https://status.travian.com">>, [], <<>>, []),
     {ok, Body} = hackney:body(ClientRef),
     Body.
 
+-spec parse_server_html(S :: <<>>) -> list(<<>>).
 parse_server_html(S) ->
     [_| Splited] = binary:split(S, <<"https://">>, [global]),
     [get_server(X) || X <- Splited].
 
+-spec get_server(S :: <<>>) -> <<>>.
 get_server(S) ->
     [Splited| _] = binary:split(S, <<"<">>, []),
     Splited.
 
+-spec get_servers_list() -> list(<<>>).
 get_servers_list() ->
     parse_server_html(get_servers_html()).
