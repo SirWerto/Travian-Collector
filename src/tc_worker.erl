@@ -41,17 +41,20 @@ terminate(normal, Url) ->
 
 
 
+-spec request_map(Url :: binary()) -> binary().
 request_map(Url) ->
     {ok, 200, _RespHeaders, ClientRef}=hackney:request(get, Url, [], <<>>, []),
     {ok, Body} = hackney:body(ClientRef),
     Body.
 
+-spec parse_binary_map(Map :: binary()) -> {ok, binary()}.
 parse_binary_map(Map) ->
     Lines = binary:split(Map, [<<10>>], [global]), %% 10 == line jump
     Acc = <<"Grid,x,y,Troop_Id,Village_Id,Village_Name,Player_Id,Player_Name,Alliance_Id,Alliance_Name,Population,Territory",10>>,
     PMap = lists:foldl(fun parse_binary_line/2, Acc, Lines),
     {ok, PMap}.
     
+-spec parse_binary_line(Line :: binary() | <<>>, Acc :: binary()) -> binary().
 parse_binary_line(<<>>, Acc) ->
     Acc;
 parse_binary_line(Line, Acc) ->
@@ -61,21 +64,25 @@ parse_binary_line(Line, Acc) ->
     <<Acc/binary, Info/binary, 10>>.
 
 
+-spec do_map(binary()) -> {ok, binary()}.
 do_map(Url) ->
     ComposeUrl = <<"https://", Url/binary, "/map.sql">>,
     Body = request_map(ComposeUrl),
     {ok, _PMap} = parse_binary_map(Body).
+
     
     
 
 %%%----------Scrap Login----------
 
 
+-spec request_php(Url :: binary()) -> binary().
 request_php(Url) ->
     {ok, 200, _RespHeaders, ClientRef}=hackney:request(get, Url, [], <<>>, []),
     {ok, Body} = hackney:body(ClientRef),
     Body.
 
+-spec parse_binary_php(BPhp :: binary()) -> {ok, map()}.
 parse_binary_php(BPhp) ->
     [_, TempAppId] = binary:split(BPhp, <<"Travian.applicationId = '">>),
     [AppId , _] = binary:split(TempAppId, <<"'">>),
@@ -96,6 +103,7 @@ parse_binary_php(BPhp) ->
 	      },
     {ok, MapPhP}.
     
+-spec do_php(Url :: binary()) -> {ok, map()}.
 do_php(Url) ->
     ComposeUrl = <<"https://",Url/binary ,"/login.php">>,
     Body = request_php(ComposeUrl),
@@ -104,11 +112,13 @@ do_php(Url) ->
 
 
 %%%----------Interfaze with us-------
+-spec do_server(Url :: binary()) -> {ok, {map(), binary()}}.
 do_server(Url) ->
     {ok, MapPhP} = do_php(Url),
     {ok, PMap} = do_map(Url),
     {ok, {MapPhP, PMap}}.
 
+-spec store_server(TDir :: string(), MapPhP :: map(), PMap :: binary()) -> ok.
 store_server(TDir, MapPhP, PMap) ->
     Path = TDir++"/"++maps:get(name,MapPhP)++"/",
     ok = filelib:ensure_dir(Path),
