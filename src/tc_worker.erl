@@ -77,10 +77,22 @@ request_php(Url) ->
     Body.
 
 parse_binary_php(BPhp) ->
+    [_, TempAppId] = binary:split(BPhp, <<"Travian.applicationId = '">>),
+    [AppId , _] = binary:split(TempAppId, <<"'">>),
+    [_, TempVersion] = binary:split(BPhp, <<"Travian.Game.version = '">>),
+    [Version , _] = binary:split(TempVersion, <<"'">>),
     [_, TempWID] = binary:split(BPhp, <<"Travian.Game.worldId = '">>),
     [WorldID , _] = binary:split(TempWID, <<"'">>),
+    [_, TempSpeed] = binary:split(BPhp, <<"Travian.Game.speed = ">>),
+    [Speed , _] = binary:split(TempSpeed, <<";">>),
+    [_, TempCountry] = binary:split(BPhp, <<"Travian.Game.country = '">>),
+    [Country , _] = binary:split(TempCountry, <<"'">>),
     MapPhP = #{
-	      wid => binary:bin_to_list(WorldID)
+	      appid => binary:bin_to_list(AppId),
+	      version => binary:bin_to_list(Version),
+	      wid => binary:bin_to_list(WorldID),
+	      speed => erlang:binary_to_integer(Speed, 10),
+	      country => binary:bin_to_list(Country)
 	      },
     {ok, MapPhP}.
     
