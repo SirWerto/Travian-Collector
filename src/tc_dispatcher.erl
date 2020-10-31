@@ -207,22 +207,22 @@ handle_down(Ref, State = #s{tasks=Tasks, ntask=NTask, monitors=Monitors, nmoni=N
     
 %%% Request Servers Functions
     
--spec get_servers_html() -> <<>>.
+-spec get_servers_html() -> binary().
 get_servers_html() ->
     {ok, 200, _RespHeaders, ClientRef}=hackney:request(get, <<"https://status.travian.com">>, [], <<>>, []),
     {ok, Body} = hackney:body(ClientRef),
     Body.
 
--spec parse_server_html(S :: <<>>) -> list(<<>>).
+-spec parse_server_html(S :: binary()) -> list(binary()).
 parse_server_html(S) ->
     [_| Splited] = binary:split(S, <<"https://">>, [global]),
     [get_server(X) || X <- Splited].
 
--spec get_server(S :: <<>>) -> <<>>.
+-spec get_server(S :: binary()) -> binary().
 get_server(S) ->
     [Splited| _] = binary:split(S, <<"<">>, []),
     Splited.
 
--spec get_servers_list() -> list(<<>>).
+-spec get_servers_list() -> list(binary()).
 get_servers_list() ->
     parse_server_html(get_servers_html()).
