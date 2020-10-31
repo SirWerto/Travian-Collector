@@ -55,6 +55,9 @@ What will come in the future
 
 4º Maybe a behaviour...
 
+5º Adding some logs
+
+
 
 How it works
 -----------
