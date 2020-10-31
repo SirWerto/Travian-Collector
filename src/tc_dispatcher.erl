@@ -140,8 +140,7 @@ time_difference(ObjTime, CDT = {CurrentDate, _CurrentTime}) ->
     calendar:datetime_to_gregorian_seconds({DatePlusOne, ObjTime}) 
 	- calendar:datetime_to_gregorian_seconds(CDT).
 
--spec add_one_day({Year :: non_neg_integer(), 12, Day :: 1..31}) -> {non_neg_integer(), 1 | 12, 1..31};
-		 ({Year :: non_neg_integer(), Month :: 1..12, Day :: 1..31}) -> {non_neg_integer(), 1..12, 1..31}.
+-spec add_one_day({Year :: non_neg_integer(), Month :: 1..12, Day :: 1..31}) -> {non_neg_integer(), 1..12, 1..31}.
 add_one_day({Year, 12, Day}) ->
     case calendar:last_day_of_the_month(Year, 12) of
 	Day ->
