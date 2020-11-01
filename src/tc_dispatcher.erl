@@ -70,16 +70,21 @@ scraping(info, {start_sup, Parent}, _S) ->
 	   maxTries = Tries,
 	   maxWorkers = Workers,
 	   daily = {Hour, Minute, Second}},
-    {next_state, scraping, S, [{state_timeout, 10000, scrap_now}]};
+    {next_state, scraping, S, [{state_timeout, 1000, scrap_now}]};
 
 scraping(state_timeout, scrap_now, S) ->
-    Fn = fun(E, Acc) -> queue:in({E, 0}, Acc) end,
-    NewTasks = lists:foldl(Fn, queue:new(), get_servers_list()),
-    NewNtask = queue:len(NewTasks),
-    NewS = S#s{tasks=NewTasks, ntask=NewNtask},
-    io:format("Scrap now~n",[]),
-    {next_state, collecting, NewS, [{state_timeout, 100, launch_collecting}]}.
-
+    case get_servers_list() of
+	{ok, Servers} ->
+	    Fn = fun(E, Acc) -> queue:in({E, 0}, Acc) end,
+	    NewTasks = lists:foldl(Fn, queue:new(), Servers),
+	    NewNtask = queue:len(NewTasks),
+	    NewS = S#s{tasks=NewTasks, ntask=NewNtask},
+	    io:format("Scrap now~n",[]),
+	    {next_state, collecting, NewS, [{state_timeout, 100, launch_collecting}]};
+	{error, Reason} ->
+	    io:format("Can't get servers status ~p~n", [Reason]),
+	    {next_state, scraping, S, [{state_timeout, 5000, scrap_now}]}
+    end.
 
 
 %% COLLECTING STATE
@@ -121,7 +126,7 @@ waiting(info, {start_sup, Parent}, _S) ->
 	   tdir = TDir,
 	   maxWorkers = Workers,
 	   daily = {Hour, Minute, Second}},
-    {next_state, waiting, S, [{state_timeout, 10000, wait_until_daily}]};
+    {next_state, waiting, S, [{state_timeout, 1000, wait_until_daily}]};
 
 waiting(state_timeout, wait_until_daily, S = #s{daily=D}) ->
     io:format("Collecting finished",[]),
@@ -207,11 +212,18 @@ handle_down(Ref, State = #s{tasks=Tasks, ntask=NTask, monitors=Monitors, nmoni=N
     
 %%% Request Servers Functions
     
--spec get_servers_html() -> binary().
+-spec get_servers_html() -> binary() | {error, any()}.
 get_servers_html() ->
-    {ok, 200, _RespHeaders, ClientRef}=hackney:request(get, <<"https://status.travian.com">>, [], <<>>, []),
-    {ok, Body} = hackney:body(ClientRef),
-    Body.
+    case hackney:request(get, <<"https://status.travian.com">>, [], <<>>, []) of
+	{ok, 200, _RespHeaders, ClientRef} ->
+	    {ok, Body} = hackney:body(ClientRef),
+	    Body;
+	{ok, StatusCode, _RespHeaders, _ClientRef} ->
+	    {error, {bad_status_code, StatusCode}};
+	{error, Reason} ->
+	    {error, Reason}
+    end.
+
 
 -spec parse_server_html(S :: binary()) -> list(binary()).
 parse_server_html(S) ->
@@ -223,6 +235,12 @@ get_server(S) ->
     [Splited| _] = binary:split(S, <<"<">>, []),
     Splited.
 
--spec get_servers_list() -> list(binary()).
+-spec get_servers_list() -> {ok, list(binary())} | {error, any()}.
 get_servers_list() ->
-    parse_server_html(get_servers_html()).
+    case get_servers_html() of
+	{error, Reason} ->
+	    {error, {hackney_error, Reason}};
+	Body ->
+	    {ok, parse_server_html(Body)}
+    end.
+	
