@@ -156,6 +156,18 @@ parse_binary_php(BPhp) ->
 	      country => binary:bin_to_list(Country)
 	      },
     {ok, MapPhP}.
+
+-spec mapphp2json(MapPhP :: map()) -> binary().
+mapphp2json(MapPhP) ->
+    MJ = #{
+	   <<"Name">> => list_to_binary(maps:get(name, MapPhP)),
+	   <<"World_ID">> => list_to_binary(maps:get(wid, MapPhP)),
+	   <<"Version">> => list_to_binary(maps:get(version, MapPhP)),
+	   <<"Country">> => list_to_binary(maps:get(country, MapPhP)),
+	   <<"Speed">> => list_to_binary(integer_to_list(maps:get(speed, MapPhP)))
+	  },
+    jiffy:encode(MJ, [pretty]).
+    
     
 -spec do_php(Url :: binary()) -> {ok, map()}.
 do_php(Url) ->
@@ -176,8 +188,8 @@ do_server(Url) ->
 store_server(TDir, MapPhP, PMap) ->
     Path = TDir++"/"++maps:get(name,MapPhP)++"/",
     ok = filelib:ensure_dir(Path),
-    NameInfo = ["info", ".txt"],
-    %ok = file:write_file(Path++NameInfo, maps:to_list(MapPhP)),
+    NameInfo = ["info", ".json"],
+    ok = file:write_file(Path++NameInfo, binary_to_list(mapphp2json(MapPhP))),
     {{Year,Month,Day}, _} = erlang:localtime(),
     NameDay = [integer_to_list(Year), "-", integer_to_list(Month), "-", integer_to_list(Day), ".json"],
     ok = file:write_file(Path++NameDay, binary_to_list(PMap)),
