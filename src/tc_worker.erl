@@ -7,7 +7,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/2, do_server/1, store_server/3]).
+-export([start_link/2, do_server/1, store_server/3, extract_line/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
@@ -50,9 +50,10 @@ request_map(Url) ->
 -spec parse_binary_map(Map :: binary()) -> {ok, binary()}.
 parse_binary_map(Map) ->
     Lines = binary:split(Map, [<<10>>], [global]), %% 10 == line jump
-    Acc = <<"Grid,x,y,Troop_Id,Village_Id,Village_Name,Player_Id,Player_Name,Alliance_Id,Alliance_Name,Population,Territory",10>>,
+    Acc = <<"[",10>>,
     PMap = lists:foldl(fun parse_binary_line/2, Acc, Lines),
-    {ok, PMap}.
+    JMap = binary:part(PMap, {0,byte_size(PMap) -2}),
+    {ok, <<JMap/binary, "]">>}.
     
 -spec parse_binary_line(Line :: binary() | <<>>, Acc :: binary()) -> binary().
 parse_binary_line(<<>>, Acc) ->
@@ -60,8 +61,9 @@ parse_binary_line(<<>>, Acc) ->
 parse_binary_line(Line, Acc) ->
     %%30 start info
     %% last 7 bytes are useless
-    Info = binary:part(Line, 30, byte_size(Line)-30-2),
-    <<Acc/binary, Info/binary, 10>>.
+    PLine = binary:part(Line, 30, byte_size(Line)-30-2),
+    Json = extract_line(PLine),
+    <<Acc/binary, Json/binary, ",", 10>>.
 
 
 -spec do_map(binary()) -> {ok, binary()}.
@@ -70,7 +72,59 @@ do_map(Url) ->
     Body = request_map(ComposeUrl),
     {ok, _PMap} = parse_binary_map(Body).
 
+-spec extract_line(Line :: binary()) -> binary().
+extract_line(<<>>) ->
+    <<>>;
+extract_line(Line) ->
+    case length(binary:matches(Line, <<",">>)) of
+	11 ->
+	    PLine = handle_easy_line(Line),
+	    tojson(PLine);
+	_ ->
+	    <<"{}">>
+	    %PLine = handle_bad_line(Line),
+	    %tojson(PLine)
+    end.
+
+-spec handle_easy_line(Line :: binary()) -> list().
+handle_easy_line(Line) ->
+     binary:split(binary:replace(Line, <<"'">>, <<>>, [global]), <<",">>, [global]).
+
+-spec handle_bad_line(Line :: binary()) -> list().
+handle_bad_line(Line) ->
+    [Grid, T1] = binary:split(Line, <<",">>),
+    [X, T2] = binary:split(T1, <<",">>),
+    [Y, T3] = binary:split(T2, <<",">>),
+    [Troop, T4] = binary:split(T3, <<",">>),
+    case length(binary:matches(T4, <<",">>)) of
+	7 ->
+	    ok;
+	_ ->
+	    ok
+    end.
+
+-spec tojson(List :: list()) -> binary().
+tojson([Grid,X,Y,TroopId,VillageId,VillageName,PlayerId,PlayerName,AllianceId,AllianceName,Population,Territory]) ->
+    Tocode = {[
+	      {<<"grid">> , Grid},
+	      {<<"x">> , X},
+	      {<<"y">> , Y},
+	      {<<"troopid">> , TroopId},
+	      {<<"villageid">> , VillageId},
+	      {<<"villagename">> , VillageName},
+	      {<<"playerid">> , PlayerId},
+	      {<<"playername">> , PlayerName},
+	      {<<"allianceid">> , AllianceId},
+	      {<<"alliancename">> , AllianceName},
+	      {<<"population">> , Population},
+	      {<<"territory">> , Territory}
+	     ]},
+    jiffy:encode(Tocode).
+	    
     
+
+
+
     
 
 %%%----------Scrap Login----------
@@ -125,7 +179,7 @@ store_server(TDir, MapPhP, PMap) ->
     NameInfo = ["info", ".txt"],
     %ok = file:write_file(Path++NameInfo, maps:to_list(MapPhP)),
     {{Year,Month,Day}, _} = erlang:localtime(),
-    NameDay = [integer_to_list(Year), "-", integer_to_list(Month), "-", integer_to_list(Day), ".csv"],
+    NameDay = [integer_to_list(Year), "-", integer_to_list(Month), "-", integer_to_list(Day), ".json"],
     ok = file:write_file(Path++NameDay, binary_to_list(PMap)),
     ok.
 
