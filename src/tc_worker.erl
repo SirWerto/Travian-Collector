@@ -7,9 +7,13 @@
 
 -behaviour(gen_server).
 
--export([start_link/2, do_server/1, store_server/3, extract_line/1]).
+-export([start_link/2]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
+
+-ifdef(EXPORTALL).
+-compile(export_all).
+-endif.
 
 
 start_link(Url, TDir) ->
@@ -26,8 +30,8 @@ handle_cast(_Request, State) ->
     {noreply, State}.
 
 handle_info({scrap, Url, TDir}, _State) ->
-    {ok, {MapPhP, PMap}}=tc_worker:do_server(Url),
-    ok = tc_worker:store_server(TDir, MapPhP, PMap),
+    {ok, {MapPhP, PMap}}=do_server(Url),
+    ok = store_server(TDir, MapPhP, PMap),
     {stop, normal, {Url, TDir}};
 handle_info(_Request, State) ->
     {noreply, State}.
@@ -81,9 +85,11 @@ extract_line(Line) ->
 	    PLine = handle_easy_line(Line),
 	    tojson(PLine);
 	_ ->
-	    <<"{}">>
-	    %PLine = handle_bad_line(Line),
-	    %tojson(PLine)
+	    try handle_bad_line(Line) of
+		PLine -> tojson(PLine)
+	    catch
+		throw:bad_line_composition -> <<"{}">>
+	    end
     end.
 
 -spec handle_easy_line(Line :: binary()) -> list().
@@ -96,12 +102,28 @@ handle_bad_line(Line) ->
     [X, T2] = binary:split(T1, <<",">>),
     [Y, T3] = binary:split(T2, <<",">>),
     [Troop, T4] = binary:split(T3, <<",">>),
-    case length(binary:matches(T4, <<",">>)) of
-	7 ->
-	    ok;
+    [VillageId, VillageName, T5] = handle_bad_line_par(T4),
+    [PlayerId, PlayerName, T6] = handle_bad_line_par(T5),
+    [AllianceId, AllianceName, T7] = handle_bad_line_par(T6),
+    [Population, Territory] = binary:split(binary:replace(T7, <<"'">>, <<>>), <<",">>),
+    [Grid, X, Y, Troop, VillageId, VillageName, PlayerId, PlayerName, AllianceId, AllianceName, Population, Territory].
+
+-spec handle_bad_line_par(Lineb :: binary()) -> list(binary()).
+handle_bad_line_par(Lineb) ->
+    [Number, TempLine] = binary:split(Lineb, <<",">>),
+    case binary:match(Number, <<"'">>) of
+	nomatch ->
+	    [Name, NewLine] = binary:split(TempLine, <<"',">>),
+	    [Number, clean_name(Name), NewLine];
 	_ ->
-	    ok
+	    throw(bad_line_composition)
     end.
+    
+-spec clean_name(Name :: binary()) -> binary().
+clean_name(<<>>) ->
+    <<>>;
+clean_name(Name) ->
+    binary:part(Name, {1, byte_size(Name)-1}).
 
 -spec tojson(List :: list()) -> binary().
 tojson([Grid,X,Y,TroopId,VillageId,VillageName,PlayerId,PlayerName,AllianceId,AllianceName,Population,Territory]) ->
