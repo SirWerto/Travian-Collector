@@ -7,11 +7,16 @@
 
 -behaviour(gen_statem).
 
--export([start_link/1, get_servers_list/0, time_difference/2, add_one_day/1]).
+-ifdef(EXPORTALL).
+-compile(export_all).
+-endif.
+
+-export([start_link/1]).
 
 -export([init/1, callback_mode/0]).
 
 -export([scraping/3, collecting/3, waiting/3]).
+
 
 -define(SPEC, #{id => wsup,
 	        start => {tc_sup_workers, start_link, []},
