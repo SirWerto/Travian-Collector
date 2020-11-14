@@ -1,6 +1,6 @@
 {application, tc,
  [{description, "Collector of daily map.sql Travian information"},
-  {vsn, "1.0.0"},
+  {vsn, "1.1.0"},
   {registered, []},
   {mod, {tc_app, []}},
   {applications,

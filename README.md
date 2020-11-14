@@ -51,11 +51,9 @@ What will come in the future
 
 2º Getting more information than just the map.sql, for example the map size or the first day of the server
 
-3º Writing the files to a json instead of a csv
+3º Maybe a behaviour...
 
-4º Maybe a behaviour...
-
-5º Adding some logs
+4º Adding some logs
 
 
 
